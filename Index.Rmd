@@ -1,0 +1,212 @@
+---
+title: "Analysis"
+author: "Bailey Kretzler"
+date: "4/20/2021"
+output: html_document
+---
+
+
+## Team 5 
+
+First lets read in the data, view it and create a column for the ratio of citations to views
+
+
+```{r}
+
+
+dat <- read.csv("plos_compbio.csv")
+
+colnames(dat)
+
+dat$ratio <- dat$num_citations/dat$num_views
+
+unique(dat$document_type)
+
+
+```
+
+
+
+Great, now that we have done that let's do some analysis. 
+
+*Questions*
+
+* Does the number of authors and countries involved in the paper change the   ratio of view to citations? Or just views? Or just citations?
+
+* Does the proportion of simple words in the abstract increase the number of views, citations, or the ratio of the two?
+
+
+*Hypothesis* 
+
+* More countries and authors will increase the number of views and citations. However, the increase in views may be greater, thus decreasing the ratio of citations:views.
+
+* Proportion of simple words in the abstract will increase the views but have and also the number of citations. The impact on the number of citations will be smaller than that of views, thus decreasing the ratio of citations:views.
+
+*Analysis* 
+
+* We will use a randomization to assess the relationship of views, citations, and the ratio to number of authors and countries associated with the paper
+
+* We will also use a generalized linear model to assess the relationship of views, citations, and the ratio to the proportion of simple words
+      MAYBE SKIP THIS
+
+* We will only use articles and reviews for this analysis
+
+
+
+
+```{r}
+#---------------------------------------------------------#
+#                      subsetting data
+#---------------------------------------------------------#
+
+condensed <- dat[which(dat$document_type == "Review"|dat$document_type == "Article"),] # only pull out the articles or reviews
+
+#check with unique
+
+unique(condensed$document_type)
+
+colnames(condensed)
+
+
+#---------------------------------------------------------#
+#                      exploratory plots
+#---------------------------------------------------------#
+
+library(ggplot2)
+
+ggplot() + geom_boxplot(data = condensed, 
+                      aes(x = num_authors, y =log(ratio + 1), group = num_authors))
+
+ggplot() + geom_boxplot(data = condensed, 
+                      aes(x = num_authors, y = log(num_views + 1),
+                          group = num_authors))
+
+#---------------------------------------------------------#
+#                      functions
+#---------------------------------------------------------#
+
+#----------------------------------------------------------
+#FUNCTION: getMet
+#Description: calculate metric for randomization test
+#Inputs: 2 column data frame for regression, column ID for parameters to analyze
+#Outputs: regression slope
+#----------------------------------------------------------
+getMet <- function(z = NULL, P1 = 3, P2 = 2) {
+  if(is.null(z)){
+        xVal <- c(rep("control",10), rep("treatment",10))
+        yVal <- rnorm(20) +10*rnorm(20)
+        z <- data.frame(ID = seq_along(xVal),
+                          x = xVal,
+                          y = yVal)
+        
+  } 
+    
+  . <- aov(z[,P1]~z[,P2]) # use anova to get p
+  . <- summary(.)
+  met <- .[[1]][1,5] #set metric = to the p
+  
+ 
+  
+  return(met)
+  
+} #end of getMet
+#----------------------------------------------------------
+
+#a =summary(aov(df$Gs ~df$Water))
+
+#getMet()
+
+
+#----------------------------------------------------------
+#FUNCTION: shuffleDat
+#Description: randomize data for a regression
+#Inputs: 3 column data frame (ID, x, y)
+#Outputs: 3 column data frame (ID, x, y) - reshuffled
+#----------------------------------------------------------
+shuffleDat <- function(z = NULL, P1 = 3, P2 = 2) {
+            if(is.null(z)){
+                  xVal <- c(rep("control",10), rep("treatment",10)) # change x to a categorical
+                  yVal <- rnorm(20) +10*rnorm(20)
+                  z <- data.frame(ID = seq_along(xVal),
+                                  x = xVal,
+                                  y = yVal)} 
+  
+    z[,P1] <- sample(z[,P1]) # change to reshuffle specified column
+ 
+  
+  return(z)
+  
+} #end of shuffleDat
+#----------------------------------------------------------
+
+#shuffleDat()
+
+#----------------------------------------------------------
+#FUNCTION: getP
+#Description: obtain p value from simulation
+#Inputs: list of observed metric and vector of simulated metrics
+#Outputs: upper and lower tail prob value
+#----------------------------------------------------------
+getP <- function(z = NULL) {
+  if(is.null(z)){
+    z <- list(rnorm(1), rnorm(1000))}
+    
+  plower <- mean(z[[2]] <= z[[1]]) # calculated the proportion when simulated value is less than or equal to observed value
+  pupper <-  mean(z[[2]] >= z[[1]]) # calculated the prop when sim is greater than or equal to obs
+  
+  
+  
+  return(c(pL = plower, pU = pupper))
+  
+} #end of getP
+#----------------------------------------------------------
+
+#getP()
+
+#----------------------------------------------------------
+#FUNCTION: plotRan  
+#Description: create ggplot of histogram of simulated values  
+#Inputs: liat of observed metric and vector of simulated metrics
+#Outputs: saved ggplot histogram
+#----------------------------------------------------------
+plotRan  <- function(z = NULL) {
+    if(is.null(z)){
+      z<- list(rnorm(1), rnorm(1000))
+    }
+  df <- data.frame(ID = seq_along(z[[2]]), simX = z[[2]])
+  p1 <- ggplot(data = df, mapping = aes(x=simX))+ 
+    geom_histogram(mapping = aes(fill = I("goldenrod"),
+                                 colour = I("black")))+ 
+    geom_vline(aes(xintercept = z[[1]], col = "blue"))
+  print(p1)
+  
+} #end of plotRan 
+#----------------------------------------------------------
+
+#plotRan()
+
+
+library(agricolae)
+
+
+a <- HSD.test(aov(data = condensed,num_views~num_authors), "num_authors",group = TRUE, console = TRUE)[[5]]
+
+a$num_authors <- rownames(a)
+
+View(a)
+
+unique(condensed$num_authors)
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
