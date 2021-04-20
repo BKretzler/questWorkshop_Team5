@@ -55,6 +55,9 @@ Great, now that we have done that let's do some analysis.
 
 
 ```{r}
+library(agricolae)
+library(ggplot2)
+
 #---------------------------------------------------------#
 #                      subsetting data
 #---------------------------------------------------------#
@@ -64,6 +67,8 @@ condensed <- dat[which(dat$document_type == "Review"|dat$document_type == "Artic
 #check with unique
 
 unique(condensed$document_type)
+
+condensed$num_authors <- as.factor(condensed$num_authors)
 
 colnames(condensed)
 
@@ -93,17 +98,18 @@ ggplot() + geom_boxplot(data = condensed,
 #----------------------------------------------------------
 getMet <- function(z = NULL, P1 = 3, P2 = 2) {
   if(is.null(z)){
-        xVal <- c(rep("control",10), rep("treatment",10))
-        yVal <- rnorm(20) +10*rnorm(20)
+        xVal <- c(rep("control",5), rep("treatment1",5), rep("treatment2",5))
+        yVal <- rnorm(15) +10*rnorm(15)
         z <- data.frame(ID = seq_along(xVal),
                           x = xVal,
                           y = yVal)
+        met <- HSD.test(aov(data = z,y~x), 'x',
+                group = TRUE, console = TRUE)[[5]]
         
-  } 
-    
-  . <- aov(z[,P1]~z[,P2]) # use anova to get p
-  . <- summary(.)
-  met <- .[[1]][1,5] #set metric = to the p
+  } else . <- HSD.test(aov(data = z,P1~P2), 'P2',
+                group = TRUE, console = TRUE)[[5]]
+         .$num_authors <- row.names(.)
+         met <- .
   
  
   
@@ -111,10 +117,6 @@ getMet <- function(z = NULL, P1 = 3, P2 = 2) {
   
 } #end of getMet
 #----------------------------------------------------------
-
-#a =summary(aov(df$Gs ~df$Water))
-
-#getMet()
 
 
 #----------------------------------------------------------
